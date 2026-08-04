@@ -1,4 +1,4 @@
-name: Android CI
+name: Android CI - JDK 17
 
 on:
   push:
@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   build:
-    name: Build debug APK
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -23,8 +22,15 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
+          distribution: temurin
           java-version: "17"
-          distribution: "temurin"
+
+      - name: Verify Java 17
+        shell: bash
+        run: |
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+          test "$(java -XshowSettings:properties -version 2>&1 | awk '/java.specification.version/ {print $3}')" = "17"
 
       - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
@@ -45,18 +51,24 @@ jobs:
           test -f app/build.gradle.kts
           test -f app/src/main/AndroidManifest.xml
 
-          if grep -R --line-number             --include='*.kt'             -E 'MemberAccount|MemberStore|MemberScreen'             app/src/main/java; then
+          if grep -R --line-number --include='*.kt'             -E 'MemberAccount|MemberStore|MemberScreen'             app/src/main/java; then
             echo "Obsolete member code is still referenced."
             exit 1
           fi
 
-      - name: Generate Gradle Wrapper
+      - name: Generate Gradle Wrapper 8.11.1
         shell: bash
         run: gradle wrapper --gradle-version 8.11.1 --distribution-type bin
 
       - name: Grant execute permission
         shell: bash
         run: chmod +x gradlew
+
+      - name: Verify Gradle runtime
+        shell: bash
+        run: |
+          ./gradlew --version
+          ./gradlew --version | grep "JVM: 17"
 
       - name: Build debug APK
         shell: bash
